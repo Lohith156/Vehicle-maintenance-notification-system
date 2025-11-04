@@ -1,0 +1,427 @@
+import javax.swing.*;
+import javax.swing.border.*;
+import javax.swing.table.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.List;
+import java.util.Timer;
+
+public class VehicleMaintenanceSystem extends JFrame {
+    private DefaultTableModel tableModel;
+    private JTable vehicleTable;
+    private List<Vehicle> vehicles;
+    private JPanel notificationPanel;
+    private Timer notificationTimer;
+    
+    public VehicleMaintenanceSystem() {
+        vehicles = new ArrayList<>();
+        initializeUI();
+        startNotificationChecker();
+    }
+    
+    private void initializeUI() {
+        setTitle("Vehicle Maintenance Notification System");
+        setSize(1000, 700);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
+        getContentPane().setBackground(new Color(240, 240, 245));
+        
+        // Header Panel
+        JPanel headerPanel = createHeaderPanel();
+        add(headerPanel, BorderLayout.NORTH);
+        
+        // Center Panel with Table
+        JPanel centerPanel = createCenterPanel();
+        add(centerPanel, BorderLayout.CENTER);
+        
+        // Control Panel
+        JPanel controlPanel = createControlPanel();
+        add(controlPanel, BorderLayout.SOUTH);
+        
+        // Notification Panel
+        notificationPanel = new JPanel();
+        notificationPanel.setLayout(new BoxLayout(notificationPanel, BoxLayout.Y_AXIS));
+        notificationPanel.setBackground(new Color(240, 240, 245));
+        notificationPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        JScrollPane notifScroll = new JScrollPane(notificationPanel);
+        notifScroll.setPreferredSize(new Dimension(280, 0));
+        notifScroll.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(new Color(100, 149, 237), 2),
+            "Notifications",
+            TitledBorder.LEFT,
+            TitledBorder.TOP,
+            new Font("Arial", Font.BOLD, 14),
+            new Color(100, 149, 237)
+        ));
+        add(notifScroll, BorderLayout.EAST);
+        
+        setLocationRelativeTo(null);
+    }
+    
+    private JPanel createHeaderPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(100, 149, 237));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JLabel titleLabel = new JLabel("Vehicle Maintenance System");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        titleLabel.setForeground(Color.WHITE);
+        panel.add(titleLabel, BorderLayout.WEST);
+        
+        JLabel iconLabel = new JLabel("🚗");
+        iconLabel.setFont(new Font("Arial", Font.PLAIN, 40));
+        panel.add(iconLabel, BorderLayout.EAST);
+        
+        return panel;
+    }
+    
+    private JPanel createCenterPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(new Color(240, 240, 245));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        String[] columns = {"Vehicle Name", "Model", "Last Service", "Next Service", "Mileage", "Status"};
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        
+        vehicleTable = new JTable(tableModel);
+        vehicleTable.setRowHeight(35);
+        vehicleTable.setFont(new Font("Arial", Font.PLAIN, 13));
+        vehicleTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 13));
+        vehicleTable.getTableHeader().setBackground(new Color(70, 130, 180));
+        vehicleTable.getTableHeader().setForeground(Color.WHITE);
+        vehicleTable.setSelectionBackground(new Color(173, 216, 230));
+        
+        JScrollPane scrollPane = new JScrollPane(vehicleTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        return panel;
+    }
+    
+    private JPanel createControlPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
+        panel.setBackground(new Color(240, 240, 245));
+        
+        JButton addBtn = createStyledButton("Add Vehicle", new Color(46, 204, 113));
+        JButton editBtn = createStyledButton("Edit Vehicle", new Color(52, 152, 219));
+        JButton deleteBtn = createStyledButton("Delete Vehicle", new Color(231, 76, 60));
+        JButton checkBtn = createStyledButton("Check Maintenance", new Color(241, 196, 15));
+        
+        addBtn.addActionListener(e -> showAddVehicleDialog());
+        editBtn.addActionListener(e -> editSelectedVehicle());
+        deleteBtn.addActionListener(e -> deleteSelectedVehicle());
+        checkBtn.addActionListener(e -> checkAllMaintenances());
+        
+        panel.add(addBtn);
+        panel.add(editBtn);
+        panel.add(deleteBtn);
+        panel.add(checkBtn);
+        
+        return panel;
+    }
+    
+    private JButton createStyledButton(String text, Color bgColor) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Arial", Font.BOLD, 13));
+        btn.setBackground(bgColor);
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setPreferredSize(new Dimension(160, 40));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        btn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                btn.setBackground(bgColor.darker());
+            }
+            public void mouseExited(MouseEvent e) {
+                btn.setBackground(bgColor);
+            }
+        });
+        
+        return btn;
+    }
+    
+    private void showAddVehicleDialog() {
+        JDialog dialog = new JDialog(this, "Add New Vehicle", true);
+        dialog.setLayout(new GridLayout(6, 2, 10, 10));
+        dialog.setSize(400, 300);
+        
+        JTextField nameField = new JTextField();
+        JTextField modelField = new JTextField();
+        JTextField lastServiceField = new JTextField("dd/MM/yyyy");
+        JTextField nextServiceField = new JTextField("dd/MM/yyyy");
+        JTextField mileageField = new JTextField();
+        
+        dialog.add(new JLabel("Vehicle Name:"));
+        dialog.add(nameField);
+        dialog.add(new JLabel("Model:"));
+        dialog.add(modelField);
+        dialog.add(new JLabel("Last Service Date:"));
+        dialog.add(lastServiceField);
+        dialog.add(new JLabel("Next Service Date:"));
+        dialog.add(nextServiceField);
+        dialog.add(new JLabel("Current Mileage:"));
+        dialog.add(mileageField);
+        
+        JButton saveBtn = new JButton("Save");
+        JButton cancelBtn = new JButton("Cancel");
+        
+        saveBtn.addActionListener(e -> {
+            try {
+                Vehicle v = new Vehicle(
+                    nameField.getText(),
+                    modelField.getText(),
+                    lastServiceField.getText(),
+                    nextServiceField.getText(),
+                    Integer.parseInt(mileageField.getText())
+                );
+                vehicles.add(v);
+                updateTable();
+                animateRowAddition();
+                dialog.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, "Invalid input! Please check all fields.");
+            }
+        });
+        
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        
+        dialog.add(saveBtn);
+        dialog.add(cancelBtn);
+        
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+    
+    private void editSelectedVehicle() {
+        int selectedRow = vehicleTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a vehicle to edit.");
+            return;
+        }
+        
+        Vehicle v = vehicles.get(selectedRow);
+        JDialog dialog = new JDialog(this, "Edit Vehicle", true);
+        dialog.setLayout(new GridLayout(6, 2, 10, 10));
+        dialog.setSize(400, 300);
+        
+        JTextField nameField = new JTextField(v.name);
+        JTextField modelField = new JTextField(v.model);
+        JTextField lastServiceField = new JTextField(v.lastService);
+        JTextField nextServiceField = new JTextField(v.nextService);
+        JTextField mileageField = new JTextField(String.valueOf(v.mileage));
+        
+        dialog.add(new JLabel("Vehicle Name:"));
+        dialog.add(nameField);
+        dialog.add(new JLabel("Model:"));
+        dialog.add(modelField);
+        dialog.add(new JLabel("Last Service Date:"));
+        dialog.add(lastServiceField);
+        dialog.add(new JLabel("Next Service Date:"));
+        dialog.add(nextServiceField);
+        dialog.add(new JLabel("Current Mileage:"));
+        dialog.add(mileageField);
+        
+        JButton saveBtn = new JButton("Save");
+        JButton cancelBtn = new JButton("Cancel");
+        
+        saveBtn.addActionListener(e -> {
+            try {
+                v.name = nameField.getText();
+                v.model = modelField.getText();
+                v.lastService = lastServiceField.getText();
+                v.nextService = nextServiceField.getText();
+                v.mileage = Integer.parseInt(mileageField.getText());
+                updateTable();
+                dialog.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, "Invalid input!");
+            }
+        });
+        
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        
+        dialog.add(saveBtn);
+        dialog.add(cancelBtn);
+        
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+    
+    private void deleteSelectedVehicle() {
+        int selectedRow = vehicleTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a vehicle to delete.");
+            return;
+        }
+        
+        int confirm = JOptionPane.showConfirmDialog(this, "Delete this vehicle?", "Confirm", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            vehicles.remove(selectedRow);
+            animateRowDeletion(selectedRow);
+        }
+    }
+    
+    private void updateTable() {
+        tableModel.setRowCount(0);
+        for (Vehicle v : vehicles) {
+            tableModel.addRow(new Object[]{
+                v.name, v.model, v.lastService, v.nextService, v.mileage + " km", v.getStatus()
+            });
+        }
+    }
+    
+    private void animateRowAddition() {
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            int alpha = 0;
+            public void run() {
+                alpha += 15;
+                if (alpha >= 255) {
+                    alpha = 255;
+                    timer.cancel();
+                }
+                vehicleTable.repaint();
+            }
+        }, 0, 20);
+    }
+    
+    private void animateRowDeletion(int row) {
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            int count = 0;
+            public void run() {
+                count++;
+                if (count >= 5) {
+                    updateTable();
+                    timer.cancel();
+                }
+            }
+        }, 0, 50);
+    }
+    
+    private void startNotificationChecker() {
+        notificationTimer = new Timer();
+        notificationTimer.scheduleAtFixedRate(new TimerTask() {
+            public void run() {
+                checkAllMaintenances();
+            }
+        }, 0, 60000); // Check every minute
+    }
+    
+    private void checkAllMaintenances() {
+        for (Vehicle v : vehicles) {
+            if (v.needsMaintenance()) {
+                showAnimatedNotification(v);
+            }
+        }
+    }
+    
+    private void showAnimatedNotification(Vehicle v) {
+        JPanel notifCard = new JPanel();
+        notifCard.setLayout(new BorderLayout(10, 10));
+        notifCard.setBackground(new Color(255, 243, 205));
+        notifCard.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(255, 193, 7), 2),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        notifCard.setMaximumSize(new Dimension(250, 100));
+        
+        JLabel titleLabel = new JLabel("⚠ Maintenance Due!");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        
+        JTextArea textArea = new JTextArea(v.name + " (" + v.model + ")\nNext service: " + v.nextService);
+        textArea.setEditable(false);
+        textArea.setOpaque(false);
+        textArea.setFont(new Font("Arial", Font.PLAIN, 11));
+        
+        notifCard.add(titleLabel, BorderLayout.NORTH);
+        notifCard.add(textArea, BorderLayout.CENTER);
+        
+        notificationPanel.add(notifCard);
+        notificationPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        
+        animateNotification(notifCard);
+        
+        Timer removeTimer = new Timer();
+        removeTimer.schedule(new TimerTask() {
+            public void run() {
+                notificationPanel.remove(notifCard);
+                notificationPanel.revalidate();
+                notificationPanel.repaint();
+            }
+        }, 10000);
+    }
+    
+    private void animateNotification(JPanel panel) {
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            int x = 300;
+            public void run() {
+                x -= 15;
+                if (x <= 0) {
+                    x = 0;
+                    timer.cancel();
+                }
+                panel.setLocation(x, panel.getY());
+                panel.revalidate();
+                panel.repaint();
+            }
+        }, 0, 10);
+    }
+    
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            new VehicleMaintenanceSystem().setVisible(true);
+        });
+    }
+}
+
+class Vehicle {
+    String name;
+    String model;
+    String lastService;
+    String nextService;
+    int mileage;
+    
+    public Vehicle(String name, String model, String lastService, String nextService, int mileage) {
+        this.name = name;
+        this.model = model;
+        this.lastService = lastService;
+        this.nextService = nextService;
+        this.mileage = mileage;
+    }
+    
+    public String getStatus() {
+        if (needsMaintenance()) {
+            return "⚠ Due";
+        }
+        return "✓ OK";
+    }
+    
+    public boolean needsMaintenance() {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+            Date next = sdf.parse(nextService);
+            Date today = new Date();
+            long diff = next.getTime() - today.getTime();
+            long days = diff / (1000 * 60 * 60 * 24);
+            return days <= 7;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
